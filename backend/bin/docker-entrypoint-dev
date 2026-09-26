@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+until pg_isready --dbname="$DATABASE_URL" >/dev/null 2>&1; do
+  echo "Waiting for PostgreSQL..."
+  sleep 1
+done
+
+bundle exec rails db:prepare
+exec "$@"

@@ -10,6 +10,8 @@
 /backend/storage/*
 /backend/vendor/bundle
 /backend/coverage
+/backend/config/master.key
+/backend/config/credentials/*.key
 
 # Node / Vite
 /frontend/node_modules

@@ -1,0 +1,54 @@
+services:
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: bundle exec rails server -b 0.0.0.0 -p 3000
+    environment:
+      DATABASE_URL: postgresql://shopsphere:${POSTGRES_PASSWORD:-shopsphere_development_password}@db:5432/shopsphere_development
+      TEST_DATABASE_URL: postgresql://shopsphere:${POSTGRES_PASSWORD:-shopsphere_development_password}@db:5432/shopsphere_test
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_MAX_THREADS: "5"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./backend:/rails
+      - bundle_cache:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    init: true
+
+  db:
+    image: postgres:16.10-alpine
+    environment:
+      POSTGRES_DB: shopsphere_development
+      POSTGRES_USER: shopsphere
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shopsphere_development_password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopsphere -d shopsphere_development"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis_data:/data
+
+volumes:
+  bundle_cache:
+  postgres_data:
+  redis_data:
