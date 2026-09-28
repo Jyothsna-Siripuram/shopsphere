@@ -29,3 +29,16 @@
 
 en:
   hello: "Hello world"
+
+  errors:
+    messages:
+      # Custom validation messages referenced by symbol from the models. Defined
+      # here rather than inline so the API can be localised later without
+      # touching model code, and so a typo surfaces as a missing translation
+      # instead of shipping a symbol to a customer.
+      invalid_slug: "must be lowercase letters, numbers and single hyphens"
+      cannot_be_self: "cannot be the record itself"
+      must_follow_start: "must be after the start time"
+      does_not_match_components: "must equal subtotal minus discount, plus tax and shipping"
+      does_not_match_unit_price: "must equal unit price multiplied by quantity"
+      must_belong_to_reviewer: "must belong to an order placed by this customer"

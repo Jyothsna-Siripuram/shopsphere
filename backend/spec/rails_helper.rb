@@ -22,6 +22,10 @@ end
 RSpec.configure do |config|
   config.fixture_paths = [ Rails.root.join("spec/fixtures") ]
 
+  # Lets specs call create/build/build_stubbed directly instead of prefixing
+  # every call with FactoryBot.
+  config.include FactoryBot::Syntax::Methods
+
   # Each example runs inside a transaction that is rolled back afterwards.
   #
   # Note for the inventory concurrency specs (Day 11): a spec that exercises real
