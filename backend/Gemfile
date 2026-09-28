@@ -4,6 +4,18 @@ source "https://rubygems.org"
 gem "rails", "~> 8.1.3", ">= 8.1.3.1"
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
+
+# Compatibility pin, not a preference.
+#
+# ActiveSupport 8.1.3.1 calls `::JSON.parse(json, options)` with options as a
+# POSITIONAL argument (active_support/json/decoding.rb:24). The json 3.0 series
+# — a default gem in Ruby 4.0 — accepts only one positional argument, so every
+# read of a jsonb attribute raises ArgumentError: wrong number of arguments.
+# That breaks orders.shipping_address on every load.
+#
+# Remove this pin once Rails ships a release that calls JSON.parse with
+# keyword arguments.
+gem "json", "~> 2.9"
 # Redis-backed Rails caching. Sidekiq is introduced when background jobs are built.
 gem "redis-client", "~> 0.28"
 gem "redis", "~> 5.4"
@@ -14,8 +26,11 @@ gem "puma", ">= 5.0"
 # Use Redis adapter to run Action Cable in production
 # gem "redis", ">= 4.0.1"
 
-# Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
-# gem "bcrypt", "~> 3.1.7"
+# Password hashing behind has_secure_password. Argon2id is the stronger modern
+# KDF, but bcrypt is the Rails-native, widely-audited default and needs no
+# custom integration. The digest column is opaque, so switching later is a
+# rehash-on-next-login migration rather than a schema change.
+gem "bcrypt", "~> 3.1.7"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
@@ -44,4 +59,11 @@ group :development, :test do
 
   # Request, service, and model testing for the API.
   gem "rspec-rails", "~> 8.0"
+
+  # Per-test data with explicit intent. Rails fixtures are a global dataset
+  # shared by every spec, which obscures which attribute a test actually
+  # depends on and grows brittle with the schema. Factories cost a little
+  # suite speed when they build deep graphs; build_stubbed is used wherever
+  # persistence is not required.
+  gem "factory_bot_rails", "~> 6.4"
 end
