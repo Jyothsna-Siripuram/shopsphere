@@ -1,0 +1,27 @@
+# The application is developed on Windows but builds and runs in Linux
+# containers. Without this file, a clone on a machine with core.autocrlf=true
+# writes CRLF into the working tree; Docker then copies those bytes into the
+# image and every shebang script fails with
+# "bad interpreter: /usr/bin/env ruby^M: no such file or directory".
+#
+# Normalising to LF in both the repository and the working tree removes that
+# entire class of failure regardless of each developer's local git config.
+* text=auto eol=lf
+
+# Binary formats must never be line-ending converted.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.pdf  binary
+*.zip  binary
+*.gz   binary
+*.woff  binary
+*.woff2 binary
+
+# Generated files: collapse diff noise in pull requests while staying reviewable.
+backend/Gemfile.lock   linguist-generated=false
+backend/db/schema.rb   linguist-generated=false
+frontend/package-lock.json linguist-generated=true
