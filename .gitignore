@@ -10,6 +10,8 @@
 /backend/storage/*
 /backend/vendor/bundle
 /backend/coverage
+# RSpec's --only-failures state; local to each machine.
+/backend/spec/examples.txt
 /backend/config/master.key
 /backend/config/credentials/*.key
 
