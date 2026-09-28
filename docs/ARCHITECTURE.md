@@ -30,7 +30,7 @@ The project is a single merchant storefront with a mock payment provider. Multi-
 
 ## 2. System context
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
   Customer[Customer browser] --> CF[CloudFront]
   Admin[Administrator browser] --> CF
@@ -47,7 +47,7 @@ flowchart LR
   Worker --> CW
   API --> Secrets[AWS Secrets Manager / SSM]
   Worker --> Secrets
-\`\`\`
+```
 
 CloudFront serves immutable frontend assets. Browser API requests target the ALB directly in the initial deployment topology; this avoids unintentionally turning CloudFront into an API cache before API cache policy, authentication, and invalidation semantics are explicitly designed. A later decision can place selected public catalogue reads behind CloudFront.
 
@@ -55,19 +55,19 @@ CloudFront serves immutable frontend assets. Browser API requests target the ALB
 
 ### Interface and versioning
 
-Rails runs in API-only mode and owns the canonical business API under \`/api/v1\`. REST is chosen because the domain is resource- and workflow-oriented, browser tooling is excellent, and it makes HTTP semantics, caching, observability, and OpenAPI documentation straightforward. GraphQL would be defensible for highly composable client data needs, but it expands authorization, query-cost, caching, and operational complexity without a present requirement.
+Rails runs in API-only mode and owns the canonical business API under `/api/v1`. REST is chosen because the domain is resource- and workflow-oriented, browser tooling is excellent, and it makes HTTP semantics, caching, observability, and OpenAPI documentation straightforward. GraphQL would be defensible for highly composable client data needs, but it expands authorization, query-cost, caching, and operational complexity without a present requirement.
 
 The API will use:
 
 - resource-oriented routes with explicit workflow endpoints only where a resource route obscures intent, such as checkout;
 - stable JSON response and error envelopes;
 - cursor or page-based pagination selected and documented before catalogue endpoints ship;
-- an \`Idempotency-Key\` header for checkout and other financially consequential writes;
+- an `Idempotency-Key` header for checkout and other financially consequential writes;
 - explicit API version namespaces, so a breaking change has a migration path.
 
 ### Internal boundaries
 
-\`\`\`text
+```text
 Request
   -> API::V1 controller (HTTP parsing, authentication, authorization, response)
   -> form/parameter validation where request-specific validation is useful
@@ -80,11 +80,11 @@ Read request
   -> query object (complex search, filtering, reporting)
   -> relation with explicit eager loading and pagination
   -> serializer/representer
-\`\`\`
+```
 
 Controllers stay thin: they do not calculate totals, mutate inventory, or assemble complex SQL. Models own local invariants, associations, and simple domain behavior. Services appear only for transactional or externally visible workflows such as checkout, payment processing, cancellation, and inventory adjustment. Query objects are reserved for composable or performance-sensitive reads such as product search and sales reports.
 
-This avoids both extremes: fat controllers hide business rules in HTTP code, while a service object for every \`create\` action creates indirection without a business benefit.
+This avoids both extremes: fat controllers hide business rules in HTTP code, while a service object for every `create` action creates indirection without a business benefit.
 
 ### Security boundary
 
@@ -97,7 +97,7 @@ This avoids both extremes: fat controllers hide business rules in HTTP code, whi
 
 React with TypeScript and Vite is a separately deployable SPA. It is deliberately a consumer of the Rails contract rather than a second implementation of business rules.
 
-\`\`\`text
+```text
 src/
   app/           application composition, providers, routing
   components/    reusable presentational UI
@@ -107,13 +107,13 @@ src/
   hooks/         reusable UI/data hooks
   types/         API/domain types
   utils/         pure cross-cutting utilities
-\`\`\`
+```
 
 - React Router owns navigation and route-level protection for user experience.
 - TanStack Query owns server-state fetching, caching, invalidation, retries, and loading/error states.
 - React Hook Form plus Zod owns client-side form ergonomics and immediate feedback.
 - Axios centralizes base URL configuration, authorization headers, token refresh coordination, and normalized API errors.
-- Feature modules own their components, hooks, and API adapters as the application grows; a single global \`components/\` folder is kept for genuinely shared primitives only.
+- Feature modules own their components, hooks, and API adapters as the application grows; a single global `components/` folder is kept for genuinely shared primitives only.
 
 The SPA may optimistically update low-risk UI state, such as a wishlist indicator, but must reconcile with the API response. It must not calculate authoritative checkout totals, decide inventory availability, or grant administrative access.
 
@@ -133,7 +133,7 @@ Row locking constrains concurrent purchases of the last item. It is intentionall
 
 ## 6. AWS target architecture
 
-\`\`\`mermaid
+```mermaid
 flowchart TB
   Internet((Internet))
   Internet --> CF[CloudFront]
@@ -151,7 +151,7 @@ flowchart TB
   CI[GitHub Actions with OIDC] --> ECR[ECR]
   ECR --> ApiTask
   ECR --> WorkerTask
-\`\`\`
+```
 
 ### Network and trust boundaries
 
@@ -168,16 +168,16 @@ ECS Fargate avoids Kubernetes control-plane overhead while still demonstrating c
 
 ## 7. Planned repository boundaries
 
-\`\`\`text
+```text
 backend/                 Rails API source, tests, database migrations, containers
 frontend/                React TypeScript SPA source and build configuration
 terraform/modules/       Reusable AWS resource modules
 terraform/environments/  Environment-specific composition and safe examples
 docs/                    Architecture and evolving technical documentation
 .github/workflows/       Continuous integration and deployment definitions
-\`\`\`
+```
 
-Empty directories are intentionally represented by \`.gitkeep\` files today. Application scaffolding begins only on later scheduled days.
+Empty directories are intentionally represented by `.gitkeep` files today. Application scaffolding begins only on later scheduled days.
 
 ## 8. Decisions to validate as implementation starts
 

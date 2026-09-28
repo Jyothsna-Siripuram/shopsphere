@@ -14,7 +14,7 @@ The first release is a single-store marketplace. It explicitly excludes multi-ve
 ## Architecture at a glance
 
 - **Frontend:** React + TypeScript SPA built with Vite and served from S3 through CloudFront.
-- **API:** Rails API-only application exposing a versioned REST interface at \`/api/v1\`.
+- **API:** Rails API-only application exposing a versioned REST interface at `/api/v1`.
 - **Data:** PostgreSQL is the transactional source of truth. Redis is used only for cache, rate-limit counters, and Sidekiq infrastructure.
 - **Async work:** Sidekiq workers process notifications, cleanup, and reports outside API request paths.
 - **AWS:** API and worker containers run on ECS Fargate behind an ALB; RDS and ElastiCache remain private.
@@ -23,7 +23,7 @@ See [the architecture document](docs/ARCHITECTURE.md) for the design, boundaries
 
 ## Repository layout
 
-\`\`\`text
+```text
 .
 ├── backend/                 # Rails API (introduced on Day 2)
 ├── frontend/                # React + TypeScript SPA (introduced on Day 21)
@@ -32,7 +32,7 @@ See [the architecture document](docs/ARCHITECTURE.md) for the design, boundaries
 │   └── modules/             # Reusable AWS infrastructure modules
 ├── docs/                    # Architecture decisions and evolving technical docs
 └── .github/workflows/       # CI/CD workflows (introduced later)
-\`\`\`
+```
 
 ## Delivery roadmap
 
@@ -54,6 +54,8 @@ Additional documentation—database design, API contracts, security, performance
 
 ## Current status
 
-**Day 1 / 30 — architecture and repository setup complete.**
+**Day 2 / 30 — Rails API skeleton, PostgreSQL, Redis, Docker, and CI complete.**
 
-No Rails API, frontend application, Docker environment, or AWS resources have been implemented yet.
+The API exposes a readiness-checked `GET /api/v1/health` and runs locally via `docker compose up`. RSpec, RuboCop, Brakeman, and bundler-audit run in GitHub Actions on every push and pull request.
+
+The domain schema, authentication, business endpoints, frontend application, and AWS resources have not been implemented yet.
