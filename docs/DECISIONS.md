@@ -103,6 +103,48 @@ Duplicate checkout requests. That is a separate problem with a separate mechanis
 
 ---
 
+## ADR-008 — Refresh token delivered in an HttpOnly cookie
+
+**Date:** 2026-09-30 (Day 5) · **Status:** accepted · **Resolves the open question at ARCHITECTURE.md §8.1**
+
+**Alternatives:** refresh token in the JSON response body stored in `localStorage`; or in the body held in memory only.
+
+**Decision:** refresh token in an `HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth` cookie. Access token in the JSON body, held in SPA memory only.
+
+**Reasoning:** `localStorage` hands full persistent account takeover to any successful XSS, which is the likelier attack against an SPA. Memory-only avoids that but logs the user out on every page reload. `HttpOnly` makes the long-lived credential unreadable to script while surviving reload.
+
+**Trade-off accepted:** introduces CSRF exposure, mitigated by `SameSite=Lax` plus an `Origin` allowlist check; and requires restoring cookie middleware that `config.api_only` excludes.
+
+**Reversal condition:** a deployment where the SPA and API are genuinely cross-site (different registrable domains) would force `SameSite=None`, at which point the `Origin` check stops being defence in depth and becomes load-bearing, and a CSRF token should be added.
+
+---
+
+## ADR-009 — Refresh token rotation with family-wide reuse detection
+
+**Date:** 2026-09-30 (Day 5) · **Status:** accepted
+
+**Decision:** every refresh issues a new token and revokes the presented one. A replayed, already-rotated token revokes the entire token family.
+
+**Reasoning:** without rotation, a token exfiltrated once grants access for its full 30-day lifetime and nothing ever reveals the theft. With rotation, the thief and the legitimate user inevitably collide, and the collision is detectable. This is the OAuth 2.0 Security BCP pattern.
+
+**Trade-off accepted:** the legitimate user can be signed out by an attacker's replay. That asymmetry is correct — a false positive costs one login, a false negative costs the account.
+
+**Implementation note worth preserving:** the family revocation must be committed *before* the reuse exception is raised. Raising inside the transaction rolls back the revocation, so the control appears to work while changing nothing. A spec asserts the revocation persists.
+
+---
+
+## ADR-010 — Refresh tokens hashed with SHA-256, not bcrypt
+
+**Date:** 2026-09-30 (Day 5) · **Status:** accepted
+
+**Decision:** store `SHA256(token)`; compare by indexed digest lookup.
+
+**Reasoning:** the deliberate inverse of the password rule. Refresh tokens are 256 bits of CSPRNG output, so there is no dictionary and brute force is infeasible at any hash speed. A slow KDF exists to make *low-entropy human* secrets expensive to guess; applied here it only adds latency to every refresh.
+
+**Reversal condition:** none while tokens remain high-entropy random. If tokens ever became partly predictable or user-derived, a KDF would be required.
+
+---
+
 ## ADR-006 — GitHub Actions workflows live at the repository root
 
 **Date:** 2026-09-28 (Day 2 remediation) · **Status:** accepted
