@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_28_090007) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_29_090001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -219,6 +219,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_28_090007) do
     t.check_constraint "weight_grams IS NULL OR weight_grams >= 0", name: "products_weight_non_negative_check"
   end
 
+  create_table "refresh_tokens", force: :cascade do |t|
+    t.string "client_ip"
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.uuid "family_id", null: false
+    t.datetime "revoked_at"
+    t.string "revoked_reason"
+    t.string "token_digest", limit: 64, null: false
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.bigint "user_id", null: false
+    t.index ["expires_at"], name: "index_refresh_tokens_on_active_expiry", where: "(revoked_at IS NULL)"
+    t.index ["family_id", "revoked_at"], name: "index_refresh_tokens_on_family_id_and_revoked_at"
+    t.index ["token_digest"], name: "index_refresh_tokens_on_token_digest", unique: true
+    t.index ["user_id", "revoked_at"], name: "index_refresh_tokens_on_user_id_and_revoked_at"
+    t.check_constraint "(revoked_at IS NULL) = (revoked_reason IS NULL)", name: "refresh_tokens_revoked_reason_matches_state_check"
+    t.check_constraint "token_digest::text ~ '^[0-9a-f]{64}$'::text", name: "refresh_tokens_digest_format_check"
+  end
+
   create_table "reviews", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -282,6 +301,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_28_090007) do
   add_foreign_key "payments", "orders", on_delete: :cascade
   add_foreign_key "product_images", "products", on_delete: :cascade
   add_foreign_key "products", "categories", on_delete: :restrict
+  add_foreign_key "refresh_tokens", "users", on_delete: :cascade
   add_foreign_key "reviews", "order_items", on_delete: :nullify
   add_foreign_key "reviews", "products", on_delete: :cascade
   add_foreign_key "reviews", "users", on_delete: :cascade

@@ -28,5 +28,11 @@ module Backend
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Cookie middleware is excluded by api_only but is required here: the
+    # refresh token is delivered in an HttpOnly cookie so that JavaScript — and
+    # therefore any XSS payload — cannot read it. Sessions and flash remain
+    # disabled; only the cookie jar is restored.
+    config.middleware.use ActionDispatch::Cookies
   end
 end

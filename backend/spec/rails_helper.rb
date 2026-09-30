@@ -26,6 +26,9 @@ RSpec.configure do |config|
   # every call with FactoryBot.
   config.include FactoryBot::Syntax::Methods
 
+  # travel_to / freeze_time, needed wherever behaviour depends on expiry.
+  config.include ActiveSupport::Testing::TimeHelpers
+
   # Each example runs inside a transaction that is rolled back afterwards.
   #
   # Note for the inventory concurrency specs (Day 11): a spec that exercises real

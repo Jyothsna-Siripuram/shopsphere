@@ -5,6 +5,7 @@ class User < ApplicationRecord
   has_secure_password
 
   has_many :addresses, inverse_of: :user
+  has_many :refresh_tokens, inverse_of: :user
   has_many :carts, inverse_of: :user
   has_many :orders, inverse_of: :user
   has_many :reviews, inverse_of: :user

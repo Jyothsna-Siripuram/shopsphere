@@ -8,6 +8,7 @@ services:
       DATABASE_URL: postgresql://shopsphere:${POSTGRES_PASSWORD:-shopsphere_development_password}@db:5432/shopsphere_development
       TEST_DATABASE_URL: postgresql://shopsphere:${POSTGRES_PASSWORD:-shopsphere_development_password}@db:5432/shopsphere_test
       REDIS_URL: redis://redis:6379/0
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
       RAILS_ENV: development
       RAILS_LOG_TO_STDOUT: "true"
       RAILS_MAX_THREADS: "5"

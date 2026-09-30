@@ -1,6 +1,12 @@
 module Api
   module V1
     class HealthController < ApplicationController
+      # Load balancer and container health probes cannot authenticate. The
+      # response carries no information beyond up/down, so this is safe to
+      # expose; the readiness check deliberately does not name which dependency
+      # is unavailable.
+      skip_before_action :authenticate_user!
+
       def show
         Health::ReadinessCheck.call
 

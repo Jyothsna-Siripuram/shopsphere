@@ -32,6 +32,13 @@ gem "puma", ">= 5.0"
 # rehash-on-next-login migration rather than a schema change.
 gem "bcrypt", "~> 3.1.7"
 
+# JWT encoding and decoding. Hand-rolling HMAC means personally owning the
+# alg:"none" confusion attack, constant-time signature comparison and claim
+# validation, which is a well-known route to a critical vulnerability.
+# devise-jwt was rejected because it brings Warden and session machinery that
+# an API-only application does not need.
+gem "jwt", "~> 2.9"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
