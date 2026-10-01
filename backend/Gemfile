@@ -39,6 +39,15 @@ gem "bcrypt", "~> 3.1.7"
 # an API-only application does not need.
 gem "jwt", "~> 2.9"
 
+# Authorization as one plain Ruby object per resource.
+#
+# CanCanCan centralises every rule in a single Ability class, which becomes a
+# god object that is hard to unit test one rule at a time. action_policy is a
+# strong alternative with built-in caching and explicit contexts, and would be
+# worth revisiting at a larger scale. Pundit's POROs keep each resource's rules
+# isolated and trivially testable, which is what this codebase needs.
+gem "pundit", "~> 2.5"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 

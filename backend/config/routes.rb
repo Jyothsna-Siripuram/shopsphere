@@ -15,6 +15,16 @@ Rails.application.routes.draw do
         post "logout",   to: "sessions#destroy"
         post "refresh",  to: "tokens#create"
       end
+
+      # Singular resource: the acting user's own profile. Without an id in the
+      # path there is no way to address another customer's record at all.
+      resource :profile, only: %i[show update], controller: "profiles"
+
+      resources :addresses, only: %i[index show create update destroy]
+
+      namespace :admin do
+        resources :users, only: %i[index show update]
+      end
     end
   end
 end

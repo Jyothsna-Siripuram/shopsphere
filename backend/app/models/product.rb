@@ -37,6 +37,14 @@ class Product < ApplicationRecord
 
   def to_param = slug
 
+  # Mirrors the `published` scope exactly. Both must agree: the scope decides
+  # what a listing contains and this decides what ProductPolicy#show? permits,
+  # so a divergence would make a product visible in one path and hidden in the
+  # other.
+  def published?
+    active? && published_at.present?
+  end
+
   def primary_image
     product_images.detect(&:is_primary?) || product_images.first
   end

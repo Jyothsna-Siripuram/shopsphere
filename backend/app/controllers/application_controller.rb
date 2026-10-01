@@ -9,6 +9,11 @@ class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
 
+  # Included after the rescue_from declarations above: Rails matches handlers
+  # from the most recently registered backwards, so Pundit's handlers must be
+  # registered last to win over the catch-all StandardError handler.
+  include Authorizable
+
   private
 
   def render_error(code:, message:, status:, details: nil)

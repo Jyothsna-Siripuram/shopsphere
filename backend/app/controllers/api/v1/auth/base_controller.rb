@@ -11,6 +11,10 @@ module Api
 
         skip_before_action :authenticate_user!
 
+        # These endpoints act on a session, not on a policy-protected record:
+        # there is no resource to authorize before the caller is identified.
+        skip_after_action :verify_authorized
+
         private
 
         def issue_session(user)

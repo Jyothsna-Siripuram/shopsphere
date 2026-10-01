@@ -7,6 +7,8 @@ require_relative "../config/environment"
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 
 require "rspec/rails"
+# Provides the `permissions` block and `permit` matcher used by policy specs.
+require "pundit/rspec"
 
 # Shared matchers, helpers, and (later) factories.
 Rails.root.glob("spec/support/**/*.rb").sort_by(&:to_s).each { |file| require file }
