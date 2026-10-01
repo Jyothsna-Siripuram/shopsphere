@@ -52,7 +52,36 @@ Embedding the role would save a database lookup, but a demoted administrator wou
 
 Every authorization check goes through `User#admin?` and never `user.role == "admin"`, so the role-as-column decision (ADR-004) stays reversible without touching policy code.
 
-Pundit itself arrives on Day 6.
+### Pundit enforcement
+
+One policy object per resource, with three structural guarantees:
+
+**Deny by default.** `ApplicationPolicy` returns `false` for every action, and `ApplicationPolicy::Scope#resolve` raises rather than returning the full scope. A policy that forgets a method fails closed; a collection whose policy forgets a `Scope` raises instead of exposing every row.
+
+**Forgetting the check is impossible.** `verify_authorized` and `verify_policy_scoped` run as after-actions on every controller. An action that never calls `authorize` or `policy_scope` raises. Forgetting the check is the most common authorization bug in Rails and it is invisible — the endpoint works and the happy-path test passes. These make it a loud failure instead. `spec/controllers/authorization_enforcement_spec.rb` asserts the callbacks stay armed so they cannot be quietly removed.
+
+**Permitted attributes come from the policy**, not the controller. `UserPolicy#permitted_attributes` returns `role` and `status` only for an administrator, so the allowlist cannot drift away from the rule that justifies it. A customer editing their own profile cannot submit `role` even though an administrator editing the same model can.
+
+### 403 versus 404
+
+A deliberate distinction, not inconsistency:
+
+| Situation | Response | Reason |
+|---|---|---|
+| Record outside the caller's policy scope | **404** | A 403 confirms the record exists, letting an attacker enumerate other customers' resource IDs |
+| Record in scope but the action is forbidden | **403** | The caller already knows it exists; hiding it would confuse without adding safety |
+
+Mechanically, controllers resolve records through `policy_scope(Model).find(id)`, so an out-of-scope record raises `RecordNotFound` naturally rather than relying on anyone remembering to choose the right status.
+
+### Rules worth noting
+
+- An administrator cannot change their own role or suspend themselves. Without this, the last remaining administrator could lock everyone out with one request and no way back.
+- An administrator cannot moderate their own review, which would make moderation decorative.
+- An order has no `update?` at all — it is an immutable financial record, and progress happens only through explicit named transitions.
+- Cancellation is state-restricted for administrators too, not just customers: reversing a delivered order is a refund, a different operation.
+- Carts and wishlists have no administrative access. Staff have no business reading a customer's basket, and not building the capability is the strongest guarantee it will not be misused.
+
+The admin namespace has a coarse `require_admin!` filter, but it is **not** the authorization: every action still calls `authorize`, and `verify_authorized` still fails the request otherwise. Relying on the namespace alone would mean one mis-nested controller silently exposes an admin endpoint.
 
 ## 3. Secure defaults
 
