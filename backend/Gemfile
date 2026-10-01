@@ -18,7 +18,7 @@ gem "pg", "~> 1.1"
 gem "json", "~> 2.9"
 # Redis-backed Rails caching. Sidekiq is introduced when background jobs are built.
 gem "redis-client", "~> 0.28"
-gem "redis", "~> 5.4"
+gem "redis", "~> 6.0"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
