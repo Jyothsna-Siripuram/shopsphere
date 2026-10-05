@@ -15,7 +15,7 @@ gem "pg", "~> 1.1"
 #
 # Remove this pin once Rails ships a release that calls JSON.parse with
 # keyword arguments.
-gem "json", "~> 2.9"
+gem "json", "~> 3.0"
 # Redis-backed Rails caching. Sidekiq is introduced when background jobs are built.
 gem "redis-client", "~> 0.28"
 gem "redis", "~> 5.4"
