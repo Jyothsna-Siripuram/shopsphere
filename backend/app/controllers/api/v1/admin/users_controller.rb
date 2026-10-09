@@ -5,6 +5,7 @@ module Api
         before_action :set_user, only: %i[show update]
 
         def index
+          authorize User, :index?
           users = policy_scope(User).order(:id)
 
           render json: { data: users.map { |user| UserSerializer.call(user) } }

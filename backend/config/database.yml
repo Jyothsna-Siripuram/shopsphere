@@ -57,7 +57,16 @@ development:
 # Do not set this db to the same as development or production.
 test:
   <<: *default
-  url: <%= ENV.fetch("TEST_DATABASE_URL") %>
+  # database.yml is rendered as ONE ERB document for every environment, so this
+  # line is evaluated even when booting in production. A bare
+  # ENV.fetch("TEST_DATABASE_URL") therefore raised KeyError in the production
+  # container, where that variable is rightly absent — the image could not boot
+  # at all.
+  #
+  # Guarding on Rails.env keeps the strict, fail-fast behaviour where it matters
+  # (the test environment still raises immediately if the variable is missing)
+  # while rendering nothing in environments that never use this block.
+  url: <%= Rails.env.test? ? ENV.fetch("TEST_DATABASE_URL") : nil %>
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is

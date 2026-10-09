@@ -8,6 +8,10 @@ class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
+  # A unique index refusing a write is a conflict, not a server fault. Reaching
+  # here means two concurrent requests raced past an application-level guard —
+  # the honest answer is "retry", not "something went wrong".
+  rescue_from ActiveRecord::RecordNotUnique, with: :render_conflict
 
   # Included after the rescue_from declarations above: Rails matches handlers
   # from the most recently registered backwards, so Pundit's handlers must be
@@ -35,6 +39,18 @@ class ApplicationController < ActionController::API
       message: "The request could not be processed",
       status: :unprocessable_content,
       details: error.record.errors.to_hash(true)
+    )
+  end
+
+  def render_conflict(error)
+    # The constraint name can expose schema detail, so it is logged rather than
+    # returned.
+    Rails.logger.warn(event: "unique_violation", message: error.message)
+
+    render_error(
+      code: "conflict",
+      message: "The request conflicted with a concurrent change. Please retry.",
+      status: :conflict
     )
   end
 

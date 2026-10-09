@@ -74,6 +74,16 @@ COPY --chown=rails:rails --from=build /rails /rails
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
-# Start server via Thruster by default, this can be overwritten at runtime
-EXPOSE 80
-CMD ["./bin/thrust", "./bin/rails", "server"]
+# Puma serves directly, with no Thruster in front.
+#
+# The `rails new` default wraps Puma in Thruster for TLS, HTTP/2, compression
+# and X-Sendfile. None of that applies here: this is an API behind an
+# Application Load Balancer that already terminates TLS and negotiates HTTP/2,
+# there are no static assets to accelerate, and the thruster gem was never in
+# the Gemfile — so the default CMD made the image fail at startup with
+# "can't find executable thrust".
+#
+# EXPOSE matches the port Puma actually binds (config/puma.rb reads PORT,
+# defaulting to 3000); the previous value of 80 was Thruster's port.
+EXPOSE 3000
+CMD ["./bin/rails", "server"]

@@ -19,7 +19,14 @@ module Authorizable
     # concern mixed into EVERY controller cannot assume `index` exists. Using an
     # `if:` predicate keeps the guarantee without coupling the concern to any
     # particular action list.
-    after_action :verify_authorized, unless: :collection_action?
+    # A collection action must satisfy BOTH checks.
+    #
+    # policy_scope alone was not enough: it filters rows, but it never consults
+    # Policy#index?. Every index? method in the codebase was therefore dead
+    # code, and a resource whose index? is admin-only — CouponPolicy, for
+    # instance — would have returned 200 with an empty array to a customer
+    # instead of 403, because the Scope resolves to `none` for them.
+    after_action :verify_authorized
     after_action :verify_policy_scoped, if: :collection_action?
 
     rescue_from Pundit::NotAuthorizedError, with: :render_forbidden

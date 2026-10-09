@@ -4,6 +4,10 @@ module Api
       before_action :set_address, only: %i[show update destroy]
 
       def index
+        # Two distinct questions: `authorize` asks whether this caller may list
+        # addresses at all, `policy_scope` decides which rows they see. Scoping
+        # alone would turn a forbidden listing into an empty 200.
+        authorize Address, :index?
         addresses = policy_scope(Address).order(:kind, :id)
 
         render json: { data: addresses.map { |address| AddressSerializer.call(address) } }
