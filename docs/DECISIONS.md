@@ -103,6 +103,26 @@ Duplicate checkout requests. That is a separate problem with a separate mechanis
 
 ---
 
+## ADR-011 — Offset pagination for the catalogue, with a cursor escape hatch
+
+**Date:** 2026-10-09 (Day 7) · **Status:** accepted · **Resolves the open question at ARCHITECTURE.md §8.2**
+
+**Alternatives:** cursor (keyset) pagination; or offset pagination.
+
+**Decision:** offset pagination — `?page=N&per_page=M`, `per_page` capped — with a documented `max_per_page` and a stable tiebreaker in every ordering.
+
+**Reasoning.** Offset is right for a *browsable* catalogue because the UI needs what cursors cannot give: a total count, a page count, and the ability to jump to page 7. A single-merchant storefront's catalogue is thousands of rows, not millions, so `OFFSET 200` is cheap — the pathology of offset pagination (`OFFSET 500000` forcing Postgres to walk and discard half a million rows) is a scale this project will not reach.
+
+Cursor pagination is genuinely better for deep traversal and is stable under concurrent writes, but it cannot answer "how many pages are there" without a separate count query, and it cannot jump to an arbitrary page. Both are requirements of a paginated product grid.
+
+**The real hazard, and the mitigation.** Offset pagination drifts when rows are inserted between requests: a product published while a customer reads page 1 pushes one item from page 1 onto page 2, so they see it twice — or miss one. This is mitigated, not eliminated, by **always ordering on a unique tiebreaker**. `ORDER BY published_at DESC` alone is non-deterministic when timestamps tie, so every paginated query appends `id`: `ORDER BY published_at DESC, id DESC`. Without that, two requests for the same page can return different rows even with no writes at all — a far more common bug than drift.
+
+**Reversal condition:** adopt cursor pagination for any endpoint that is traversed rather than browsed — an export, a sync feed, a Sidekiq batch walker — or if the catalogue reaches a size where deep offsets measurably hurt. The two can coexist: offset for the storefront grid, cursor for machine consumers.
+
+**No gem.** `kaminari` and `pagy` both solve a harder problem than this needs (view helpers, template integration) for an API that only returns JSON metadata. A query object computing `limit`/`offset` and a count is roughly fifteen lines and avoids a dependency whose surface is mostly view code. Revisit if pagination logic starts spreading across query objects.
+
+---
+
 ## ADR-008 — Refresh token delivered in an HttpOnly cookie
 
 **Date:** 2026-09-30 (Day 5) · **Status:** accepted · **Resolves the open question at ARCHITECTURE.md §8.1**

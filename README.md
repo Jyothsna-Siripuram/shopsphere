@@ -54,8 +54,16 @@ Additional documentation—database design, API contracts, security, performance
 
 ## Current status
 
-**Day 2 / 30 — Rails API skeleton, PostgreSQL, Redis, Docker, and CI complete.**
+**Day 7 / 30 — foundation complete and reviewed.**
 
-The API exposes a readiness-checked `GET /api/v1/health` and runs locally via `docker compose up`. RSpec, RuboCop, Brakeman, and bundler-audit run in GitHub Actions on every push and pull request.
+Built and verified: the 16-table domain schema with database-level constraints, Active Record models, JWT authentication with rotating refresh tokens, Pundit authorization with fail-closed enforcement, and a production container image that boots and serves its health check.
 
-The domain schema, authentication, business endpoints, frontend application, and AWS resources have not been implemented yet.
+```
+206 examples, 0 failures   ·   RuboCop clean   ·   Brakeman 0 warnings
+```
+
+Not yet built: product, cart, checkout, order and admin endpoints; Redis caching; Sidekiq; the React application; Terraform and AWS infrastructure.
+
+One caveat worth stating plainly: the CI pipeline has never been observed running. It was inert until Day 2's remediation (it sat in `backend/.github/`, where GitHub does not look), and every step has since been verified locally but not in Actions.
+
+See [docs/DECISIONS.md](docs/DECISIONS.md) for the decision record and [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for what has actually been measured.

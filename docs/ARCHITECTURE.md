@@ -181,7 +181,24 @@ Empty directories are intentionally represented by `.gitkeep` files today. Appli
 
 ## 8. Decisions to validate as implementation starts
 
-1. Choose JWT refresh-token transport and CSRF posture after the SPA hosting domains are finalized. HttpOnly same-site cookies are safer against token exfiltration but require careful cross-origin CSRF/CORS design; a browser-stored token is simpler but increases XSS blast radius.
-2. Choose pagination semantics using expected catalogue size and UX. Offset pagination is simple but can drift during writes; cursor pagination scales and remains stable but is more complex.
-3. Choose an outbox implementation before Sidekiq notifications are introduced, so committed orders reliably drive external effects.
-4. Set concrete recovery objectives, instance classes, and scaling thresholds when AWS cost constraints are known.
+1. ~~Choose JWT refresh-token transport and CSRF posture.~~ **Resolved on Day 5** — HttpOnly cookie with `SameSite=Lax` plus an `Origin` allowlist. See [ADR-008](DECISIONS.md).
+2. ~~Choose pagination semantics.~~ **Resolved on Day 7** — offset pagination with a capped page size and a unique tiebreaker in every ordering, with cursor pagination reserved for machine consumers. See [ADR-011](DECISIONS.md).
+3. Choose an outbox implementation before Sidekiq notifications are introduced, so committed orders reliably drive external effects. **Still open; due before Day 16.**
+4. Set concrete recovery objectives, instance classes, and scaling thresholds when AWS cost constraints are known. **Still open; due before Day 27.**
+
+## 9. Verified facts, as distinct from intent
+
+Everything above describes a target architecture. What has actually been built and checked:
+
+| Claim | Status |
+|---|---|
+| Rails API boots in production mode in a container | **Verified** Day 7 — `GET /api/v1/health` returns `{"data":{"status":"ok"}}` |
+| Readiness check covers PostgreSQL and Redis | **Verified** — fails closed, and names no dependency in the response |
+| Schema enforces correctness independently of Rails | **Verified** — 17 specs drive invalid data through raw SQL |
+| Authentication cannot be forgotten on an endpoint | **Verified** — required by default; opting out is explicit |
+| Authorization cannot be forgotten in an action | **Verified** — `verify_authorized` raises; a spec keeps it armed |
+| Catalogue and order reads are N+1 free | **Verified** — query count flat across dataset sizes |
+| CI pipeline passes | **Unverified** — the workflow has never been observed running |
+| Sidekiq, Redis caching, Terraform, ECS | **Not built** |
+
+The CI row matters: the pipeline was inert until Day 2's remediation, and no run has been observed since.
