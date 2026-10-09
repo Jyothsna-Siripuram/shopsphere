@@ -21,6 +21,17 @@ RSpec.describe "Addresses", type: :request do
 
       expect(response).to have_http_status(:unauthorized)
     end
+
+    # Regression for a Day 7 review finding: index actions previously relied on
+    # policy_scope alone, which filters rows but never consults Policy#index?.
+    # A denied listing silently returned 200 with an empty array instead of 403.
+    it "returns 403 when the policy denies listing, not an empty 200" do
+      allow_any_instance_of(AddressPolicy).to receive(:index?).and_return(false)
+
+      get "/api/v1/addresses", headers: auth_headers_for(customer)
+
+      expect(response).to have_http_status(:forbidden)
+    end
   end
 
   describe "GET /api/v1/addresses/:id" do
