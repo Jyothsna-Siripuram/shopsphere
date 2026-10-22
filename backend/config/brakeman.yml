@@ -1,0 +1,13 @@
+# Brakeman reads this automatically.
+#
+# script/ holds developer-run measurement tools (script/benchmarks), not code
+# reachable from a request. They interpolate SQL deliberately — EXPLAIN of
+# hardcoded candidate queries — and abort outside development. Scanning them
+# produced three SQL-injection warnings with no request path behind them, and
+# a gate that is routinely ignored stops being a gate. Exclude the directory
+# rather than ignore-listing fingerprints that would go stale with every edit.
+#
+# Anything under app/, lib/ or config/ is still scanned in full.
+---
+:skip_files:
+  - script/

@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_29_090001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_11_090001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
 
   create_table "addresses", force: :cascade do |t|
     t.string "city", null: false
@@ -204,12 +205,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_090001) do
     t.string "name", null: false
     t.decimal "price", precision: 12, scale: 2, null: false
     t.datetime "published_at"
+    t.virtual "search_vector", type: :tsvector, as: "(setweight(to_tsvector('english'::regconfig, (COALESCE(name, ''::character varying))::text), 'A'::\"char\") || setweight(to_tsvector('english'::regconfig, COALESCE(description, ''::text)), 'B'::\"char\"))", stored: true
     t.citext "sku", null: false
     t.citext "slug", null: false
     t.string "status", default: "draft", null: false
     t.datetime "updated_at", null: false
     t.integer "weight_grams"
     t.index ["category_id", "status"], name: "index_products_on_category_id_and_status"
+    t.index ["name"], name: "index_products_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
+    t.index ["search_vector"], name: "index_products_on_search_vector", using: :gin
     t.index ["sku"], name: "index_products_on_sku", unique: true
     t.index ["slug"], name: "index_products_on_slug", unique: true
     t.index ["status", "published_at"], name: "index_products_on_active_published_at", order: { published_at: :desc }, where: "((status)::text = 'active'::text)"

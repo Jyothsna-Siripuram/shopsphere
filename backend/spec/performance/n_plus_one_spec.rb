@@ -27,17 +27,19 @@ RSpec.describe "N+1 query prevention", type: :request do
 
       queries = count_queries do
         Product.with_listing_associations.each do |product|
+          product.category.slug
           product.inventory&.available_quantity
           product.product_images.map(&:storage_key)
         end
       end
 
-      # One for products, one for inventories, one for images.
-      expect(queries.size).to eq(3)
+      # One each for products, categories, inventories and images.
+      expect(queries.size).to eq(4)
     end
 
     def read_listing
       Product.with_listing_associations.to_a.each do |product|
+        product.category.slug
         product.inventory&.available_quantity
         product.product_images.to_a
       end

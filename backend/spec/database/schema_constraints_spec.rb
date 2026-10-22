@@ -7,6 +7,18 @@ require "rails_helper"
 # validations are bypassed: update_all, a Sidekiq job, a bulk admin edit, or a
 # console session at 2am.
 RSpec.describe "Schema constraints", type: :schema do
+  describe "products.search_vector" do
+    # The guarantee a callback cannot give: no write path can store a vector
+    # that disagrees with the name and description.
+    it "refuses a direct write to the generated column" do
+      product_id = create_product
+
+      expect_constraint_violation do
+        execute("UPDATE products SET search_vector = to_tsvector('stale') WHERE id = #{product_id}")
+      end
+    end
+  end
+
   describe "inventories" do
     # The single most important constraint in the schema.
     #

@@ -22,8 +22,16 @@ Rails.application.routes.draw do
 
       resources :addresses, only: %i[index show create update destroy]
 
+      # Public catalogue. Addressed by slug, so :id carries a slug here — see
+      # Product#to_param.
+      resources :products, only: %i[index show]
+      resources :categories, only: :index
+
       namespace :admin do
         resources :users, only: %i[index show update]
+        # Admin routes address products by id: renaming a product must not
+        # change the URL an administrator is editing it at.
+        resources :products, only: %i[index show create update destroy]
       end
     end
   end

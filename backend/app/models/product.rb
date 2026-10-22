@@ -1,6 +1,12 @@
 class Product < ApplicationRecord
   STATUSES = %w[draft active archived].freeze
 
+  # A generated column (ADR-012) that only SQL reads. Ignoring it makes Active
+  # Record SELECT an explicit column list instead of `products.*`, so a listing
+  # of 24 products does not drag 24 tsvectors — often larger than the
+  # description they index — across the wire on every request.
+  self.ignored_columns += %w[search_vector]
+
   belongs_to :category, inverse_of: :products
 
   # Images own files in object storage, which the database cannot clean up, so
@@ -33,7 +39,9 @@ class Product < ApplicationRecord
   # Every listing endpoint must use this. Without it each product row triggers
   # a separate query for its images and inventory, which is the classic N+1
   # this catalogue would otherwise ship with.
-  scope :with_listing_associations, -> { includes(:inventory, :product_images) }
+  # Category is included because every serialized product embeds it; omitting
+  # it was caught by the Day 8 request spec as one query per row.
+  scope :with_listing_associations, -> { includes(:category, :inventory, :product_images) }
 
   def to_param = slug
 

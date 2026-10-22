@@ -19,6 +19,18 @@ default: &default
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
   checkout_timeout: <%= ENV.fetch("DATABASE_CHECKOUT_TIMEOUT", 5) %>
+  variables:
+    # The search typo fallback (ADR-012). The default of 0.6 rejects a
+    # one-letter typo in a short word: word_similarity('lether', 'Leather') is
+    # exactly 0.5. The word-similarity operator reads this setting (not written
+    # out here: this file is ERB, and the operator's spelling opens a tag). Only
+    # the operator
+    # (not a `word_similarity(...) >= x` comparison) can use the trigram index,
+    # so the threshold has to live here rather than in the query.
+    #
+    # Session-level: if a transaction-pooling PgBouncer is ever introduced, this
+    # must move to `ALTER ROLE ... SET`, because SET does not survive pooling.
+    pg_trgm.word_similarity_threshold: 0.4
 
 
 development:
