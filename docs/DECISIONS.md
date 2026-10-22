@@ -123,6 +123,70 @@ Cursor pagination is genuinely better for deep traversal and is stable under con
 
 ---
 
+## ADR-012 — Product search: `tsvector` full text, with a trigram fallback for typos
+
+**Date:** 2026-10-12 (Day 9) · **Status:** accepted · **Resolves the deferral at DATABASE.md §8**
+
+**Alternatives:** `ILIKE '%term%'` with no index; `ILIKE` backed by `pg_trgm` GIN indexes; trigram similarity alone; `tsvector` full text alone; an external engine (OpenSearch, Meilisearch).
+
+**Decision.**
+
+1. A **stored generated** `tsvector` column — name weighted `A`, description `B` — with a GIN index, queried through `websearch_to_tsquery('english', q)`.
+2. Ordered by **`ts_rank`** when a search is present and no explicit sort is requested.
+3. **Only when full text returns nothing**, a fallback to trigram `word_similarity` on `name`, with the threshold lowered to 0.4. The response reports `meta.search.mode` as `fulltext` or `fuzzy`.
+
+**Reasoning — measured, not assumed.** `script/benchmarks/product_search.rb` loads 10k and 100k Zipf-distributed products in a rolled-back transaction and runs `EXPLAIN ANALYZE` against each strategy. The full tables are in [PERFORMANCE.md §5](PERFORMANCE.md#5-product-search). What decided it:
+
+- **`ILIKE` is wrong before it is slow.** `running shoes` returns **0** results against a catalogue full of "Running Shoe" products, because `ILIKE` matches substrings, not words. It also sequential-scans: 300–700 ms per count at 100k.
+- **Trigram indexes help `ILIKE` only for selective patterns.** For a common term the planner still chose a sequential scan (356 ms at 100k), because most rows match. A trigram index over descriptions also cost **41 MB vs 15 MB** for the `tsvector` index, and bought nothing full text does not.
+- **Full text was the fastest and the only correct option.** Stemming finds "running shoes" (847 matches at 10k). Counts took 0.4–16 ms at 10k and 0.4–76 ms at 100k.
+- **`ts_rank_cd` was rejected on measurement.** Cover density ranking took 197 ms for a common term at 10k (538 ms at 100k), against **19 ms** (70 ms) for `ts_rank`. Every match must be ranked before `LIMIT` applies, so the per-row cost is multiplied by the match count. The A/B weights already put title matches first, which is most of what relevance means for product names.
+- **Full text cannot handle typos; trigrams can.** `lether` finds nothing through a stemmer. The fallback runs only on zero-result searches, so the common path never pays its cost (20–40 ms at 10k).
+
+**A finding that would have shipped as a bug.** pg_trgm's default `word_similarity_threshold` of 0.6 rejects a one-letter typo in a short word: `word_similarity('lether', 'Leather')` is exactly **0.5**. With the default, the typo fallback returned zero results for the case it exists to serve. The threshold is set to 0.4 in `database.yml` (`variables:`). It has to be a session setting rather than a `word_similarity(...) >= 0.4` predicate, because only the `<%` operator can use the trigram index.
+
+**Generated column, not a callback or trigger.** A callback is bypassed by `update_all`, `insert_all` and raw SQL, and a search index that drifts from its data fails silently. The database computing the column cannot drift; a spec proves it through `update_all`, and another proves a direct write is refused. The column is in `ignored_columns`, so listings select an explicit column list and never ship tsvectors to Ruby.
+
+**Trade-offs accepted.**
+
+- English stemming only. Product copy in another language would be stemmed wrongly.
+- No prefix (search-as-you-type) matching. `snea` does not find "Sneaker". `to_tsquery('snea:*')` supports it and was verified, but autocomplete is not in scope, and prefixing user input safely needs its own tokenisation.
+- The fuzzy fallback degrades with scale. At 100k products a broad typo matched 11k rows and took ~650 ms, because the trigram index cannot narrow a term that resembles a tenth of the catalogue.
+- One extra `EXISTS` query per search, to decide whether to fall back.
+- The threshold is a session setting, so it would not survive a transaction-pooling PgBouncer. It would then move to `ALTER ROLE ... SET`.
+
+**Reversal conditions.**
+
+- Move ranking off the request path (precomputed popularity, or an external engine) if the catalogue grows to where a common term's `ts_rank` exceeds ~100 ms at p95. Measured at 100k, it is already 70 ms.
+- Adopt an external engine for faceted counts, synonyms, multiple languages, or search-as-you-type at scale. Each of these is a capability gap, not a speed problem. The cost is a second datastore that must be kept in sync, which is exactly the drift the generated column avoids.
+
+---
+
+## ADR-013 — The cart is a live view, not a reservation
+
+**Date:** 2026-10-13 (Day 10) · **Status:** accepted
+
+**Alternatives:** store each line's price when it is added; reserve stock when an item is added; refuse an add whose quantity exceeds stock.
+
+**Decision.** A cart line stores only `product_id` and `quantity`. Price is read live from the product. Stock is not reserved. A line's availability is reported as a category (`available`, `insufficient_stock`, `out_of_stock`, `unavailable`), never as a number. Checkout is the only point where price and stock become binding, re-read under lock ([ADR-001](#adr-001--inventory-concurrency-pessimistic-row-locking-plus-a-check-backstop)).
+
+**Reasoning.**
+
+- **Stored prices go stale in the customer's favour.** A cart that remembered the price at add-time would let a customer hold a sale price indefinitely. A live price means the cart always shows what checkout will charge.
+- **Reserving stock at add-time lets one customer hoard it.** Abandoned carts would hold inventory hostage. Fixing that needs expiring holds and a sweeper, which is a reservation system. The project does not need one, because a single store's checkout window is seconds.
+- **Refusing "add 5" with "only 3 left" discloses stock.** That is the same leak `in_stock` exists to avoid (Day 8), turned into a probe: binary-search the quantity until the add succeeds. The add is accepted and the line reported as `insufficient_stock`.
+
+**Concurrency.** Adding is one `INSERT ... ON CONFLICT (cart_id, product_id) DO UPDATE SET quantity = LEAST(cart_items.quantity + EXCLUDED.quantity, 99)`. The cart itself is created with `create_or_find_by!` against the partial unique index (one active cart per user). A spec races real threads on separate connections. A naive find-then-save run of the same race lost **2 of 4** increments and raised `RecordNotUnique`. The upsert loses none.
+
+**Trade-offs accepted.**
+
+- A customer can see a price rise between adding an item and checking out. The client should surface it; checkout charges the current price either way.
+- `POST /cart/items` increments, so it is not idempotent: a client retrying a timed-out add can double-add. `PATCH` sets the quantity and is the idempotent alternative. An `Idempotency-Key` on adds is deferred until the client needs automatic retries.
+
+**Reversal condition:** reserve at add-time if the store runs flash sales or limited drops, where "it was in my cart" carries a promise. That means a reservations table with expiry and a sweeper, not a cart column.
+
+---
+
 ## ADR-008 — Refresh token delivered in an HttpOnly cookie
 
 **Date:** 2026-09-30 (Day 5) · **Status:** accepted · **Resolves the open question at ARCHITECTURE.md §8.1**

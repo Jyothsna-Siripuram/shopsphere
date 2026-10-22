@@ -74,23 +74,28 @@ RSpec.describe "N+1 query prevention", type: :request do
   end
 
   describe "Cart#items_subtotal" do
-    # Documents a real hazard rather than asserting it is solved: the method
-    # reads item.product.price, so without with_pricing_associations it emits a
-    # query per line. Nothing forces a caller to use that scope, which is why
-    # the cart endpoint on Day 10 must opt in explicitly.
-    it "is N+1 free only when loaded through with_pricing_associations" do
+    # The method reads item.product.price, so it is N+1 free only when the cart
+    # is loaded through with_pricing_associations. Nothing in the model forces
+    # that; the cart endpoint (Day 10) opts in through CartLoading, and
+    # spec/requests/api/v1/cart_spec.rb asserts the endpoint stays flat.
+    #
+    # Asserted by growth, like every other example here: an absolute
+    # eager-vs-lazy comparison broke as soon as the scope legitimately started
+    # loading one more association.
+    def subtotal_queries(lines, eager:)
       cart = create(:cart)
-      3.times { create(:cart_item, cart:, product: create(:product)) }
+      lines.times { create(:cart_item, cart:, product: create(:product, :in_stock)) }
+      relation = eager ? Cart.with_pricing_associations : Cart.all
 
-      eager = count_queries do
-        Cart.with_pricing_associations.find(cart.id).items_subtotal
-      end
-      lazy = count_queries do
-        Cart.find(cart.id).items_subtotal
-      end
+      count_queries { relation.find(cart.id).items_subtotal }
+    end
 
-      expect(eager.size).to be < lazy.size
-      expect(eager.size).to be <= 4
+    it "stays flat as lines are added when loaded eagerly" do
+      expect(subtotal_queries(4, eager: true).size).to eq(subtotal_queries(1, eager: true).size)
+    end
+
+    it "grows with lines when loaded lazily — the hazard the scope prevents" do
+      expect(subtotal_queries(4, eager: false).size).to be > subtotal_queries(1, eager: false).size
     end
   end
 

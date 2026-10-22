@@ -27,6 +27,12 @@ Rails.application.routes.draw do
       resources :products, only: %i[index show]
       resources :categories, only: :index
 
+      # Singular for the same reason as profile: the caller's own cart, with no
+      # id that could name someone else's.
+      resource :cart, only: %i[show destroy] do
+        resources :items, only: %i[create update destroy], controller: "cart_items"
+      end
+
       namespace :admin do
         resources :users, only: %i[index show update]
         # Admin routes address products by id: renaming a product must not

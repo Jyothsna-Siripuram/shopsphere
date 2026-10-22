@@ -101,6 +101,8 @@ Every index is a read optimisation paid for with write cost: each `INSERT`, and 
 | `users (email)` UNIQUE | Login lookup by email | Runs on every authentication. Unique because duplicate emails make "which account authenticated?" ambiguous — a security problem, not just a data one | One entry per user; users are rarely written |
 | `products (status, published_at DESC) WHERE status='active'` | Catalogue listing: filter active, sort newest | Runs on nearly every page view. Composite satisfies filter *and* sort from one index scan, with no sort step | Only active rows indexed; publishing/archiving rewrites one entry |
 | `products (category_id, status)` | Browse and admin filter by category | Avoids a sequential scan as the catalogue grows | Small; products change infrequently |
+| `products USING gin (search_vector)` | Full-text search (ADR-012) | `search_vector` is a STORED generated column, so the database maintains it and no write path can make it stale | 15 MB at 100k products; recomputed on any write to name or description |
+| `products USING gin (name gin_trgm_ops)` | Typo fallback when full text finds nothing | Lets `q <% name` use an index instead of computing similarity for every row | 14 MB at 100k products. Deliberately **not** on description: 41 MB for both columns, and still a sequential scan for common terms |
 | `products (slug)` UNIQUE, `products (sku)` UNIQUE | URL resolution; SKU lookup | Slug resolves on every product page; unique keeps routes unambiguous | Negligible |
 | `inventories (product_id)` UNIQUE | Lock and read stock during checkout | On the checkout hot path. Unique enforces the one-row-per-product invariant | Narrow table, but the most write-heavy index in the schema |
 | `inventories (available_quantity)` | Admin low-stock dashboard | Supports `available_quantity <= reorder_threshold`. A partial index cannot be used because the predicate compares two columns | Updated on every purchase; kept single-column to limit that cost |
@@ -173,7 +175,7 @@ Products are **archived** (`status = 'archived'`), not deleted, which is why `RE
 
 ## 8. Deferred to later days
 
-- **Full-text product search** (Day 9). `pg_trgm` is deliberately *not* enabled yet: choosing between trigram and `tsvector` indexing is a Day 9 decision that should follow measurement, and an unused index is pure write cost.
+- ~~**Full-text product search** (Day 9).~~ **Resolved on Day 9.** A `tsvector` generated column plus a trigram index on `name`, chosen by measurement. See [ADR-012](DECISIONS.md).
 - **Refresh tokens** (Day 5), stored as digests with an expiry, supporting revocation and `CleanupExpiredTokensJob`.
 - **Coupon redemptions per user.** `usage_limit_per_user` exists but enforcing it needs a `coupon_redemptions` table; added with coupon logic on Day 14.
 - **Inventory movement ledger.** Not required by the current design; would be added if stock auditing ("why is this figure 3?") becomes a requirement.

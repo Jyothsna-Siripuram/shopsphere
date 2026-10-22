@@ -54,15 +54,15 @@ Additional documentation—database design, API contracts, security, performance
 
 ## Current status
 
-**Day 7 / 30 — foundation complete and reviewed.**
+**Day 10 / 30 — cart.**
 
-Built and verified: the 16-table domain schema with database-level constraints, Active Record models, JWT authentication with rotating refresh tokens, Pundit authorization with fail-closed enforcement, and a production container image that boots and serves its health check.
+Built and verified: the 16-table domain schema with database-level constraints, Active Record models, JWT authentication with rotating refresh tokens, Pundit authorization with fail-closed enforcement, a production container image that boots and serves its health check, the product catalogue — a public, paginated, filterable listing plus admin product management — full-text product search with a typo fallback, chosen by benchmark (ADR-012), and a concurrency-safe cart (ADR-013).
 
 ```
-206 examples, 0 failures   ·   RuboCop clean   ·   Brakeman 0 warnings
+361 examples, 0 failures   ·   RuboCop clean   ·   Brakeman 0 warnings
 ```
 
-Not yet built: product, cart, checkout, order and admin endpoints; Redis caching; Sidekiq; the React application; Terraform and AWS infrastructure.
+Not yet built: checkout and order endpoints; Redis caching; Sidekiq; the React application; Terraform and AWS infrastructure.
 
 One caveat worth stating plainly: the CI pipeline has never been observed running. It was inert until Day 2's remediation (it sat in `backend/.github/`, where GitHub does not look), and every step has since been verified locally but not in Actions.
 

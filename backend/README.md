@@ -121,6 +121,30 @@ Puma serves directly on port 3000; there is no Thruster in front, because the AL
 | `GET` `PATCH` | `/api/v1/profile` | bearer token |
 | `GET` `POST` `PATCH` `DELETE` | `/api/v1/addresses` | bearer token, owner-scoped |
 | `GET` `PATCH` | `/api/v1/admin/users` | bearer token, admin |
+| `GET` | `/api/v1/products` | public; published products only |
+| `GET` | `/api/v1/products/:slug` | public; a draft is `404`, not `403` |
+| `GET` | `/api/v1/categories` | public |
+| `GET` `DELETE` | `/api/v1/cart` | bearer token; `GET` never creates a cart, `DELETE` empties it |
+| `POST` | `/api/v1/cart/items` | bearer token; `{ product_id, quantity }`, **increments** an existing line |
+| `PATCH` `DELETE` | `/api/v1/cart/items/:id` | bearer token; `PATCH { quantity }` **sets** the quantity (idempotent) |
+| `GET` `POST` `PATCH` `DELETE` | `/api/v1/admin/products` | bearer token, admin; addressed by id; `DELETE` archives |
+
+Every cart mutation returns the whole cart. Each line carries `availability`: `available`, `insufficient_stock`, `out_of_stock` or `unavailable` (archived or unpublished). The cart reports `checkout_ready` but never stock quantities. Prices are live, not stored; see ADR-013.
+
+### Catalogue query parameters
+
+`GET /api/v1/products` accepts:
+
+| Parameter | Meaning | Invalid input |
+|---|---|---|
+| `q` | Full-text search over name and description (stemmed; supports `"phrases"`, `or`, `-exclude`). Falls back to typo-tolerant matching on name when nothing matches | Control characters stripped; truncated to 100 characters |
+| `page`, `per_page` | Offset pagination; `per_page` defaults to 24, max 100; `page` max 10,000 | Coerced to a sensible value, never `400` |
+| `sort` | `relevance` (default when searching), `newest` (default otherwise), `oldest`, `price_asc`, `price_desc`, `name` | Falls back to the default |
+| `category` | Category **slug** | Unknown slug returns an empty page |
+| `min_price`, `max_price` | Inclusive bounds, decimal strings | Ignored |
+| `in_stock` | `true` to hide unavailable products | Ignored unless truthy |
+
+Responses carry `meta: { page, per_page, total_count, total_pages }`. A search adds `meta.search: { query, mode, sort }`, where `mode` is `fulltext` or `fuzzy`. A client should label fuzzy results ("showing results for similar terms") rather than present them as exact matches. Prices are two-place strings (`"50.00"`), never JSON numbers. The public shape reports `in_stock` but never the quantity; the admin shape adds `available_quantity`, `reorder_threshold` and `low_stock`.
 
 Authentication is required by default: `ApplicationController` applies `authenticate_user!` to every controller, and an endpoint becomes public only by explicitly skipping it.
 
