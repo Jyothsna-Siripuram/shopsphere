@@ -74,7 +74,7 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
 
   # Request, service, and model testing for the API.
-  gem "rspec-rails", "~> 8.0"
+  gem "rspec-rails", "~> 8.1"
 
   # Per-test data with explicit intent. Rails fixtures are a global dataset
   # shared by every spec, which obscures which attribute a test actually
